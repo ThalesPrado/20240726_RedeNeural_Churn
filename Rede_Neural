@@ -1,0 +1,136 @@
+import pandas as pd
+import numpy as np
+import os
+import json
+import random
+import matplotlib.pyplot as mt
+import matplotlib.pyplot as plt
+from scipy.stats import logistic
+from scipy.special import erfinv
+import math
+from scipy.special import beta as beta_func
+from scipy.special import betaincinv
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
+
+import statistics as stt
+from scipy.stats import wilcoxon
+from sklearn.metrics import cohen_kappa_score, classification_report, mean_absolute_error, mean_squared_error, ConfusionMatrixDisplay
+from scipy.stats import pearsonr
+from google.colab import drive
+from tensorflow import keras
+from tensorflow.keras import layers
+
+# Libs
+import warnings
+
+from tqdm import tqdm
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
+
+# Configs
+warnings.simplefilter(action='ignore', category=FutureWarning)
+pd.set_option('display.max_columns', None)
+
+drive.mount('/content/drive')
+dados = pd.read_excel('/content/drive/MyDrive/20240717_RedeNeural.xlsx')
+
+colunas = ['Id', 'Genero', 'Idade', 'ReceitaMensal', 'Frequencia', 'Regiao', 'ClienteSimNao' ]
+for j in colunas:
+  for i in range(len(dados)):
+    if dados[j][i] == 'Masculino':
+      dados[j][i] = 1
+    elif dados[j][i] == 'Feminino':
+      dados[j][i] = -1
+    elif dados[j][i] == 'Sim':
+      dados[j][i] = 0
+    elif dados[j][i] == 'Nao':
+      dados[j][i] = 1
+    if(dados[j][i]== 'Norte'):
+      dados[j][i] = 1
+    elif(dados[j][i]== 'Sul'):
+      dados[j][i] = 2
+    elif(dados[j][i]== 'Nordeste'):
+      dados[j][i] = 3
+    elif(dados[j][i]== 'Sudeste'):
+      dados[j][i] = 4
+    elif(dados[j][i]== 'Centro-Oeste'):
+      dados[j][i] = 5
+dados
+
+# New dataset
+dados_1 = np.copy(dados)
+y = dados_1[:,6]
+dados_puro = np.delete(dados_1, 0, axis=1)
+dados_puro = np.delete(dados_puro, 5, axis=1)
+
+
+## 
+w0 = max(dados_puro[:,1])
+w1 = max(dados_puro[:,2])
+w2 = max(dados_puro[:,3])
+w3 = max(dados_puro[:,4])
+for j in range(5):
+  for i in range(len(dados_puro)):
+    if(j==1):
+      dados_puro[i][j] = dados_puro[i][j]/w0
+    if(j==3):
+      dados_puro[i][j] = dados_puro[i][j]/w2
+    if(j==2):
+      dados_puro[i][j] = dados_puro[i][j]/w1
+    if(j==4):
+      dados_puro[i][j] = dados_puro[i][j]/w3
+
+y = y/max(y)
+x_train, x_test, y_train, y_test = train_test_split(dados_puro, y, test_size=0.008, random_state=42)
+
+# Model / data parameters
+num_classes = 2
+input_shape = (5, 1, 1) #verifique
+
+# Load the data and split it between train and test sets
+# (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+
+# Scale images to the [0, 1] range
+x_train = x_train.astype("float32")
+x_test = x_test.astype("float32")
+# Make sure images have shape (28, 28, 1)
+x_train = np.expand_dims(x_train, -1)
+x_test = np.expand_dims(x_test, -1)
+print("x_train shape:", x_train.shape)
+print(x_train.shape[0], "train samples")
+print(x_test.shape[0], "test samples")
+
+
+# convert class vectors to binary class matrices
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
+
+model = keras.Sequential(
+    [
+        keras.Input(shape=input_shape),
+        #layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+        #layers.MaxPooling2D(pool_size=(2, 2)),
+        #layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+        #layers.MaxPooling2D(pool_size=(2, 2)),
+        layers.Flatten(),
+        #layers.Dropout(0.5),
+        layers.Dense(num_classes, activation="relu"),
+        layers.Dense(num_classes, activation="softmax"),
+    ]
+)
+
+model.summary()
+batch_size = 128
+epochs = 100
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
+score = model.evaluate(x_test, y_test, verbose=0)
+print("Test loss:", score[0])
+print("Test accuracy:", score[1])
+model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1)
